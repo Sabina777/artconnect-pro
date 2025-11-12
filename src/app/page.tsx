@@ -1,7 +1,45 @@
-// app/page.tsx
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { createClient } from '@/app/libs/supabaseClient'
+import { useRouter } from 'next/navigation'
 
 export default function HomePage() {
+  const supabase = createClient()
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
+
+  // Fetch user on mount
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+
+    // Listen for login/logout changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  // Handle logout
+const handleLogout = async () => {
+  console.log('Logging out...') // 👈 debug
+  const { error } = await supabase.auth.signOut()
+  if (error) console.error('Logout error:', error)
+  else console.log('Signed out successfully')
+  setUser(null)
+  router.push('/auth/login')
+}
+
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col">
       {/* Navbar */}
@@ -9,19 +47,34 @@ export default function HomePage() {
         <Link href="/" className="text-2xl font-bold text-blue-600">
           ArtConnect Pro
         </Link>
+
         <div className="space-x-4">
-          <Link
-            href="/auth/login"
-            className="text-gray-700 hover:text-blue-600 transition"
-          >
-            Login
-          </Link>
-          <Link
-            href="/auth/register"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          >
-            Sign Up
-          </Link>
+          {user ? (
+            <>
+             
+              <button
+                onClick={handleLogout}
+                className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-700 transition"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/auth/login"
+                className="text-gray-700 hover:text-blue-600 transition"
+              >
+                Login
+              </Link>
+              <Link
+                href="/auth/register"
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -35,6 +88,7 @@ export default function HomePage() {
           their creative community. Join ArtConnect Pro to explore, collaborate,
           and elevate your artistry.
         </p>
+
         <div className="space-x-4">
           <Link
             href="/signup"
@@ -97,9 +151,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 text-center py-6">
-        <p>
-          © {new Date().getFullYear()} ArtConnect Pro
-        </p>
+        <p>© {new Date().getFullYear()} ArtConnect Pro</p>
       </footer>
     </main>
   )
